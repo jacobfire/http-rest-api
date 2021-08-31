@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -59,6 +60,7 @@ func (s *APIServer) configureServer() http.Server {
 	s.router.HandleFunc("/analyse", func(writer http.ResponseWriter, request *http.Request) {
 		writer.Write([]byte("Analyse"))
 	})
+	s.router.HandleFunc("/catalog/{category}/{id:[0-9]+}", s.categoryHandler())
 	server := http.Server {
 		Addr: s.config.BindAddr,
 		Handler: s.router,
@@ -68,4 +70,13 @@ func (s *APIServer) configureServer() http.Server {
 	}
 
 	return server
+}
+
+func (s * APIServer) categoryHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		io.WriteString(w, "Article")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Category: %v ID:%v \n", vars["category"], vars["id"])
+	}
 }
