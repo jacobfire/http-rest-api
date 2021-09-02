@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"fmt"
+	"github.com/golang-migrate/migrate/v4"
 	"github.com/gorilla/mux"
 	"github.com/jacobfire/http-rest-api/store"
 	"github.com/sirupsen/logrus"
@@ -36,7 +37,7 @@ func (s *APIServer) Start() error {
 	s.logger.Info("Starting server...")
 
 	server := s.configureServer()
-	if err := server.ListenAndServe(); err != nil {
+	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
 	return nil
@@ -46,6 +47,7 @@ func (s *APIServer) Start() error {
 func (s *APIServer) configureStore() error {
 	st := store.New(s.config.Store)
 
+	log.Println("Configuring store")
 	if err := st.Open(); err != nil {
 		return err
 	}
@@ -96,4 +98,20 @@ func (s * APIServer) categoryHandler() http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "Category: %v ID:%v \n", vars["category"], vars["id"])
 	}
+}
+
+func (s *APIServer) Migrate() error {
+	log.Println(s.config.Store.DatabaseURL)
+	m, err := migrate.New(
+		"/migrations",
+		s.config.Store.DatabaseURL,
+		)
+	if err != nil {
+		return err
+	}
+	if err := m.Up(); err != nil {
+		return err
+	}
+
+	return nil
 }
