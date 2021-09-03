@@ -1,6 +1,8 @@
 package apiserver
 
-import "github.com/jacobfire/http-rest-api/store"
+import (
+	"github.com/jacobfire/http-rest-api/app/store"
+)
 
 type Config struct {
 	BindAddr string `toml:"bind_addr"`
@@ -12,6 +14,6 @@ func NewConfig() *Config {
 	return &Config{
 		BindAddr: ":8080",
 		LogLevel: "info",
-		Store: store.NewConfig(),
+		Store:    store.NewConfig(),
 	}
 }

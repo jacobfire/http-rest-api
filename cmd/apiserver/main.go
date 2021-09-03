@@ -28,10 +28,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	s := apiserver.New(config)
-	if err := s.Start(); err != nil {
-		log.Fatal(err)
-	}
 	log.Println("Before migrations")
 	if needMigration {
 		if err = s.Migrate(); err != nil {
@@ -39,5 +37,10 @@ func main() {
 		}
 
 		fmt.Println("Migrations have been started successfully")
+
+		return
+	}
+	if err := s.Start(); err != nil {
+		log.Fatal(err)
 	}
 }
