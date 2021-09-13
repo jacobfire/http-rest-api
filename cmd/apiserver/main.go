@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/BurntSushi/toml"
 	"github.com/jacobfire/http-rest-api/app/apiserver"
 	"log"
 )
@@ -23,16 +22,10 @@ func main() {
 
 	log.Println("Before initialization")
 
-	config := apiserver.NewConfig()
-	_, err := toml.DecodeFile(configPath, config)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	s := apiserver.New(config)
+	s := apiserver.New()
 	log.Println("Before migrations")
 	if needMigration {
-		if err = s.Migrate(); err != nil {
+		if err := s.Migrate(); err != nil {
 			log.Fatal(err)
 		}
 

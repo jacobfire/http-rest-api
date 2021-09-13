@@ -8,26 +8,49 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/gorilla/mux"
 	"github.com/jacobfire/http-rest-api/app/store"
+	"github.com/jacobfire/http-rest-api/configs"
 	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"time"
 )
 
+type FileData struct {
+	Name string
+	CreationDate string `json:"CreatedAt,omitempty"`
+	//Status int `json:"Status,omitempty"`
+	Status int `json:"Status"`
+}
+
+var fileNames []FileData
+
+type ByDate []FileData
+
+func (a ByDate) Len() int {
+	return len(a)
+}
+
+func (a ByDate) Less(i, j int) bool {
+	return a[i].CreationDate < a[j].CreationDate
+}
+
+func (a ByDate) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
 type APIServer struct {
-	config *Config
 	logger *logrus.Logger
 	router *mux.Router
 	store *store.Store
 }
 
-func New(config *Config) *APIServer {
+func New() *APIServer {
 	return &APIServer{
-		config: config,
 		logger: logrus.New(),
 		router: mux.NewRouter(),
 	}
@@ -53,7 +76,8 @@ func (s *APIServer) Start() error {
 
 // Configure Store
 func (s *APIServer) configureStore() error {
-	st := store.New(s.config.Store)
+	config := configs.NewConfig()
+	st := store.New(config.Store)
 
 	log.Println("Configuring store")
 	if err := st.Open(); err != nil {
@@ -72,7 +96,8 @@ func (s * APIServer) handleHello() http.HandlerFunc {
 }
 
 func (s *APIServer) configureLogger() error {
-	level, err := logrus.ParseLevel(s.config.LogLevel)
+	config := configs.NewConfig()
+	level, err := logrus.ParseLevel(config.LogLevel)
 	if err != nil {
 		return err
 	}
@@ -91,9 +116,11 @@ func (s *APIServer) configureServer() http.Server {
 
 	s.router.Handle("/migrations", http.HandlerFunc(s.fetchMigration)).Methods(http.MethodGet)
 	s.router.Handle("/migrations", http.HandlerFunc(s.CreateMigration)).Methods(http.MethodPost)
+	s.router.Handle("/filesContent", http.HandlerFunc(s.filesContent)).Methods(http.MethodGet)
 
+	config := configs.NewConfig()
 	server := http.Server {
-		Addr: s.config.BindAddr,
+		Addr: config.BindAddr,
 		Handler: s.router,
 		// Good practice: enforce timeouts for servers you create!
 		WriteTimeout: 15 * time.Second,
@@ -113,13 +140,14 @@ func (s * APIServer) categoryHandler() http.HandlerFunc {
 }
 
 func (s *APIServer) Migrate() error {
-	log.Println(s.config.Store.DatabaseURL)
+	config := configs.NewConfig()
+	log.Println(config.Store.DatabaseURL)
 	dirPath, err := os.Getwd()
 	dirPath = dirPath + "/" + "migrations/"
 
 	m, err := migrate.New(
 		"file:" + dirPath,
-		s.config.Store.DatabaseURL,
+		config.Store.DatabaseURL,
 		)
 	if err != nil {
 		return err
@@ -238,24 +266,82 @@ func (s *APIServer) fetchMigration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type FileData struct {
-		Name string
-		CreationDate string
-	}
-	var fileNames []FileData
-	var preparedData [][]FileData
-	for _, file := range files {
+	//var preparedData [][]FileData
+	for index, file := range files {
+
 		fileData := FileData {
 			Name: file.Name(),
 			CreationDate: file.ModTime().Format("2006-01-02 15:04:05"),
 		}
-		fileNames = append(fileNames, fileData)
-	}
-	preparedData = append(preparedData, fileNames)
 
-	resultString, e := json.Marshal(preparedData)
+		if index == 2 {
+			fileData.Status = index
+		}
+		fileNames = append(fileNames, fileData)
+		sort.Sort(ByDate(fileNames))
+	}
+	//preparedData = fileNames
+
+	resultString, e := json.Marshal(fileNames)
 	if e != nil {
 		s.sendResponse(w, "Internal error", 0)
+		return
 	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	s.sendResponse(w, string(resultString), http.StatusOK)
 }
+
+func (s *APIServer) filesContent(w http.ResponseWriter, r *http.Request) {
+	rootFolder, err := os.Getwd()
+	if err != nil {
+		s.sendResponse(w, "searching for files has been stopped", 0)
+		return
+	}
+	migrationFolder := rootFolder + "/migrations"
+	files, err := ioutil.ReadDir(migrationFolder)
+	if err != nil {
+		s.sendResponse(w, "files not found", 0)
+		return
+	}
+
+	readFiles := func() <-chan []byte {
+		contentChannel := make(chan []byte)
+		for _, file := range files {
+			go func(fileName string) {
+				content, err := ioutil.ReadFile(migrationFolder + "/" + fileName)
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				contentChannel <- content
+			}(file.Name())
+		}
+
+		return contentChannel
+	}
+
+	readContent := ""
+	filesContent := readFiles()
+	for i := 0; i < len(files); i++ {
+		readContent += string(<-filesContent)
+	}
+	s.sendResponse(w, readContent, http.StatusOK)
+
+}
+
+func Paginate(total, page int, size int) (int, int) {
+	page = page * size
+	size = page + size
+	if page > total {
+		page = total
+	}
+	if size > total {
+		size = total
+	}
+	return page, size
+}
+
+func Sum(a, b int) int {
+	return a + b
+}
+
