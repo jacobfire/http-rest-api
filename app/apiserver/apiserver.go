@@ -27,8 +27,6 @@ type FileData struct {
 	Status int `json:"Status"`
 }
 
-var fileNames []FileData
-
 type ByDate []FileData
 
 func (a ByDate) Len() int {
@@ -36,7 +34,7 @@ func (a ByDate) Len() int {
 }
 
 func (a ByDate) Less(i, j int) bool {
-	return a[i].CreationDate < a[j].CreationDate
+	return a[i].CreationDate > a[j].CreationDate
 }
 
 func (a ByDate) Swap(i, j int) {
@@ -114,9 +112,10 @@ func (s *APIServer) configureServer() http.Server {
 	})
 	s.router.HandleFunc("/catalog/{category}/{id:[0-9]+}", s.categoryHandler())
 
-	s.router.Handle("/migrations", http.HandlerFunc(s.fetchMigration)).Methods(http.MethodGet)
+	s.router.Handle("/migrations", middleware(http.HandlerFunc(s.fetchMigration))).Methods(http.MethodGet)
 	s.router.Handle("/migrations", http.HandlerFunc(s.CreateMigration)).Methods(http.MethodPost)
 	s.router.Handle("/filesContent", http.HandlerFunc(s.filesContent)).Methods(http.MethodGet)
+	//s.router.Handle("/signin", http.HandlerFunc(s.Signin)).Methods(http.MethodPost)
 
 	config := configs.NewConfig()
 	server := http.Server {
@@ -266,7 +265,14 @@ func (s *APIServer) fetchMigration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	token, ok := r.Context().Value("authtoken").(string)
+	if !ok {
+		s.sendResponse(w, "unautharized", http.StatusUnauthorized)
+		return
+	}
+
 	//var preparedData [][]FileData
+	var fileNames []FileData
 	for index, file := range files {
 
 		fileData := FileData {
@@ -278,16 +284,16 @@ func (s *APIServer) fetchMigration(w http.ResponseWriter, r *http.Request) {
 			fileData.Status = index
 		}
 		fileNames = append(fileNames, fileData)
-		sort.Sort(ByDate(fileNames))
 	}
 	//preparedData = fileNames
-
+	sort.Sort(ByDate(fileNames))
 	resultString, e := json.Marshal(fileNames)
 	if e != nil {
 		s.sendResponse(w, "Internal error", 0)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Bearer", token)
 	s.sendResponse(w, string(resultString), http.StatusOK)
 }
 
@@ -328,6 +334,16 @@ func (s *APIServer) filesContent(w http.ResponseWriter, r *http.Request) {
 	s.sendResponse(w, readContent, http.StatusOK)
 
 }
+
+//func (s *APIServer) Signin(w http.ResponseWriter, r *http.Request) {
+//	token, err := GenerateJWT("test@test.com", "admin")
+//	if err != nil {
+//		s.sendResponse(w, "cant generate token", http.StatusUnauthorized)
+//	}
+//	s.sendResponse(w, token, http.StatusOK)
+//
+//}
+
 
 func Paginate(total, page int, size int) (int, int) {
 	page = page * size

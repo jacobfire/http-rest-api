@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/BurntSushi/toml v0.4.1
+	github.com/golang-jwt/jwt/v4 v4.0.0
 	github.com/golang-migrate/migrate/v4 v4.14.1
 	github.com/gorilla/mux v1.8.0
 	github.com/lib/pq v1.10.2
