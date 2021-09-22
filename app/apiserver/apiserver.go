@@ -7,6 +7,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/gorilla/mux"
+	"github.com/jacobfire/http-rest-api/app/cache"
 	"github.com/jacobfire/http-rest-api/app/store"
 	"github.com/jacobfire/http-rest-api/configs"
 	"github.com/sirupsen/logrus"
@@ -45,12 +46,14 @@ type APIServer struct {
 	logger *logrus.Logger
 	router *mux.Router
 	store *store.Store
+	CacheManager cache.Cache
 }
 
 func New() *APIServer {
 	return &APIServer{
 		logger: logrus.New(),
 		router: mux.NewRouter(),
+		CacheManager: *cache.New(10 * time.Minute, 25 * time.Minute),
 	}
 }
 
@@ -309,18 +312,40 @@ func (s *APIServer) filesContent(w http.ResponseWriter, r *http.Request) {
 		s.sendResponse(w, "files not found", 0)
 		return
 	}
-
+	
 	readFiles := func() <-chan []byte {
 		contentChannel := make(chan []byte)
 		for _, file := range files {
-			go func(fileName string) {
-				content, err := ioutil.ReadFile(migrationFolder + "/" + fileName)
-				if err != nil {
-					log.Fatal(err)
-				}
+			var  translating = false
+			//var cachedData interface{}
+			var cachedFileContent []byte
+			cachedData, unpacking := s.CacheManager.Get(file.Name())
 
-				contentChannel <- content
-			}(file.Name())
+			fmt.Println("UNPACKING ", unpacking)
+			fmt.Println("DATA ", cachedData)
+			if  unpacking {
+				cachedFileContent, translating = cachedData.([]byte)
+				fmt.Println("DATA CONVERTED ", string(cachedFileContent))
+
+				fmt.Println("Translating => ", unpacking)
+				if translating {
+					go func(t []byte) {
+						contentChannel <-t
+					}(cachedFileContent)
+				}
+			}
+			if !unpacking && !translating {
+				fmt.Println("goroutine works")
+				go func(fileName string) {
+					content, err := ioutil.ReadFile(migrationFolder + "/" + fileName)
+					if err != nil {
+						log.Fatal(err)
+					}
+					s.CacheManager.Set(fileName, content, 10 * time.Minute)
+					fmt.Println("FILENAME ", fileName)
+					contentChannel <- content
+				} (file.Name())
+			}
 		}
 
 		return contentChannel
@@ -331,8 +356,8 @@ func (s *APIServer) filesContent(w http.ResponseWriter, r *http.Request) {
 	for i := 0; i < len(files); i++ {
 		readContent += string(<-filesContent)
 	}
-	s.sendResponse(w, readContent, http.StatusOK)
 
+	s.sendResponse(w, readContent, http.StatusOK)
 }
 
 //func (s *APIServer) Signin(w http.ResponseWriter, r *http.Request) {
