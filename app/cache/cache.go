@@ -7,6 +7,7 @@ import (
 )
 
 var CacherInit *Cache
+var Once sync.Once
 
 type Cache struct {
 	sync.RWMutex
@@ -23,12 +24,12 @@ type Item struct {
 
 func New(defaultExpiration, cleanupInterval time.Duration) *Cache {
 
-	//var Once sync.Once
+
 	// инициализируем карту(map) в паре ключ(string)/значение(Item)
-	//Once.Do(func() {
+	Once.Do(func() {
 			items := make(map[string]Item)
 
-		CacherInit := &Cache{
+		CacherInit = &Cache{
 				items:             items,
 				defaultExpiration: defaultExpiration,
 				cleanupInterval:   cleanupInterval,
@@ -38,7 +39,7 @@ func New(defaultExpiration, cleanupInterval time.Duration) *Cache {
 			if cleanupInterval > 0 {
 				CacherInit.StartGC() // данный метод рассматривается ниже
 			}
-		//})
+		})
 	return CacherInit
 }
 

@@ -46,14 +46,14 @@ type APIServer struct {
 	logger *logrus.Logger
 	router *mux.Router
 	store *store.Store
-	CacheManager cache.Cache
+	//CacheManager cache.Cache
 }
 
 func New() *APIServer {
 	return &APIServer{
 		logger: logrus.New(),
 		router: mux.NewRouter(),
-		CacheManager: *cache.New(10 * time.Minute, 25 * time.Minute),
+		//CacheManager: *cache.New(10 * time.Minute, 25 * time.Minute),
 	}
 }
 
@@ -312,14 +312,15 @@ func (s *APIServer) filesContent(w http.ResponseWriter, r *http.Request) {
 		s.sendResponse(w, "files not found", 0)
 		return
 	}
-	
+
+	CacheManager := cache.New(5 * time.Minute, 10 * time.Minute)
 	readFiles := func() <-chan []byte {
 		contentChannel := make(chan []byte)
 		for _, file := range files {
 			var  translating = false
 			//var cachedData interface{}
 			var cachedFileContent []byte
-			cachedData, unpacking := s.CacheManager.Get(file.Name())
+			cachedData, unpacking := CacheManager.Get(file.Name())
 
 			fmt.Println("UNPACKING ", unpacking)
 			fmt.Println("DATA ", cachedData)
@@ -341,7 +342,7 @@ func (s *APIServer) filesContent(w http.ResponseWriter, r *http.Request) {
 					if err != nil {
 						log.Fatal(err)
 					}
-					s.CacheManager.Set(fileName, content, 10 * time.Minute)
+					CacheManager.Set(fileName, content, 10 * time.Minute)
 					fmt.Println("FILENAME ", fileName)
 					contentChannel <- content
 				} (file.Name())
