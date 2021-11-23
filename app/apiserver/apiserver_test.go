@@ -25,7 +25,7 @@ func TestAPIServer_configureStore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &APIServer{
-				config: tt.fields.config,
+				//config: tt.fields.config,
 				logger: tt.fields.logger,
 				router: tt.fields.router,
 				store:  tt.fields.store,
@@ -67,7 +67,7 @@ func TestPaginate(t *testing.T) {
 func TestSum(t *testing.T) {
 	t.Run("sum 1+2", func(t *testing.T) {
 		got := Sum(1, 2)
-		if got != 4 {
+		if got != 3 {
 			t.Errorf("Paginate() got = %v, want %v", got, 4)
 		}
 	})
