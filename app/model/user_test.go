@@ -15,6 +15,30 @@ func TestUser_BeforeCreate(t *testing.T) {
 // Hi, Im Yakov and have been working with IT technologies. I am a web magician and helped a lot of companies to start their offline businesses to start it in the web.
 //It's easy and profitable. And also can bring your business to new level
 func TestUser_Validate(t *testing.T) {
-	u := model.TestUser(t)
-	assert.NoError(t, u.Validate())
+	//u := model.TestUser(t)
+	//assert.NoError(t, u.Validate())
+
+	testCases := []struct {
+		name string
+		u func() *model.User
+		isValid bool
+	}{
+		{
+			name: "valid",
+			u: func() *model.User {
+				return model.TestUser(t)
+			},
+			isValid: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.isValid {
+				assert.NoError(t, tc.u().Validate())
+			} else {
+				assert.Error(t, tc.u().Validate())
+			}
+		})
+	}
 }
