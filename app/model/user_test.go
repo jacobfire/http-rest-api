@@ -30,6 +30,47 @@ func TestUser_Validate(t *testing.T) {
 			},
 			isValid: true,
 		},
+		{
+			name: "invalid email",
+			u: func() *model.User {
+				user := model.TestUser(t)
+				user.Email = "invalid"
+
+				return user
+			},
+			isValid: false,
+		},
+		{
+			name: "empty password",
+			u: func() *model.User {
+				user := model.TestUser(t)
+				user.Password = ""
+
+				return user
+			},
+			isValid: false,
+		},
+		{
+			name: "short password",
+			u: func() *model.User {
+				user := model.TestUser(t)
+				user.Password = "pas"
+
+				return user
+			},
+			isValid: false,
+		},
+		{
+			name: "with encrypted password",
+			u: func() *model.User {
+				user := model.TestUser(t)
+				user.Password = ""
+				user.EncryptedPassword = "encryptedPassword"
+
+				return user
+			},
+			isValid: true,
+		},
 	}
 
 	for _, tc := range testCases {

@@ -2,7 +2,7 @@ package apiserver
 
 import (
 	"github.com/gorilla/mux"
-	"github.com/jacobfire/http-rest-api/app/store"
+	"github.com/jacobfire/http-rest-api/app/store/sqlstore"
 	"github.com/jacobfire/http-rest-api/configs"
 	"github.com/sirupsen/logrus"
 	"testing"
@@ -13,7 +13,7 @@ func TestAPIServer_configureStore(t *testing.T) {
 		config *configs.Config
 		logger *logrus.Logger
 		router *mux.Router
-		store  *store.Store
+		store  *sqlstore.Store
 	}
 	tests := []struct {
 		name    string

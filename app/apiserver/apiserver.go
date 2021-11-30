@@ -8,7 +8,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/gorilla/mux"
 	"github.com/jacobfire/http-rest-api/app/cache"
-	"github.com/jacobfire/http-rest-api/app/store"
+	"github.com/jacobfire/http-rest-api/app/store/sqlstore"
 	"github.com/jacobfire/http-rest-api/configs"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -45,7 +45,7 @@ func (a ByDate) Swap(i, j int) {
 type APIServer struct {
 	logger *logrus.Logger
 	router *mux.Router
-	store *store.Store
+	store *sqlstore.Store
 	//CacheManager cache.Cache
 }
 
@@ -78,7 +78,7 @@ func (s *APIServer) Start() error {
 // Configure Store
 func (s *APIServer) configureStore() error {
 	config := configs.NewConfig()
-	st := store.New(config.Store)
+	st := sqlstore.New(config.Store)
 
 	log.Println("Configuring store")
 	if err := st.Open(); err != nil {
